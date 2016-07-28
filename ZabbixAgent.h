@@ -48,7 +48,7 @@ class ZabbixAgent : public WiFiServer {
         }
         char* key;
         CallbackType fn;
-        Handler* next;
+        Handler* next = 0;
     };
     Handler* firstHandler = 0;
     Handler* lastHandler = 0;
