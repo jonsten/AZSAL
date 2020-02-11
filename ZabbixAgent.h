@@ -63,8 +63,11 @@ class ZabbixResponseHandler {
   public:
     ZabbixResponseHandler(ZabbixAgent* server): server(server) {
     }
+    void respond(const unsigned int resp);
     void respond(const int resp);
     void respond(const char* resp);
+    void respond(const double resp);
+    void respond(const double resp, const unsigned char prec);
     void respond(const char* resp, const uint16_t len);
     void error(const char* msg);
   private:

@@ -49,7 +49,10 @@ void ZabbixAgent::handleClient() {
   if (currentClient && currentClient.connected()) {
     // Parser based on: https://www.zabbix.com/documentation/3.2/manual/config/items/item/key
     int b;
+    uint32_t expectedLength = 0;
+    uint32_t actualLength = 0;
     while (parseState != END && parseState != ERROR && (b = currentClient.read()) >= 0) {
+      actualLength++;
       switch (parseState) {
       case PARSE_KEY:
         if (('0' <= b && b <= '9') || ('a' <= b && b <= 'z') || ('A' <= b && b <= 'Z') || b == '_' || b == '-' || b == '.') {
@@ -58,8 +61,19 @@ void ZabbixAgent::handleClient() {
           parseState = PARAMETER_START;
         } else if (b == '\r' || b == '\n') {
           parseState = END;
+        } else if (b == 0x01 && currentParseToken == "ZBXD") {
+          // Zabbix 4.0 server, i.e. header, let's ignore it
+          currentParseToken = "";
+          actualLength = 0;
+          int i;
+          expectedLength = currentClient.read() + (currentClient.read() << 8) + (currentClient.read() << 16) + (currentClient.read() << 24);
+          for (i = 0; i < 4; i++) {
+            currentClient.read();
+          }
         } else {
-          error("Unexpected token.");
+          char* msg = "Unexpected token '%'.";
+          msg[strchr(msg, '%') - msg] = b;
+          error(msg);
           parseState = ERROR;
           break;
         }
@@ -118,6 +132,18 @@ void ZabbixAgent::handleClient() {
         break;
       }
     }
+    if (expectedLength != 0 && actualLength == expectedLength) {
+      if (parseState == PARSE_KEY) {
+        if (currentKey) {
+          delete[] currentKey;
+        }
+        currentKey = new char[currentParseToken.length() + 1];
+        currentParseToken.getBytes((byte*)currentKey, currentParseToken.length() + 1);
+        currentKey[currentParseToken.length()] = 0;
+        currentParseToken = "";
+      }
+      parseState = END;
+    }
     if (parseState == END || parseState == ERROR) {
       if (parseState == END) {
         processCommand();
@@ -131,10 +157,26 @@ void ZabbixAgent::handleClient() {
   }
 }
 
+void ZabbixResponseHandler::respond(const unsigned int resp) {
+    char buff[30];
+    snprintf(buff, 30, "%d", resp);
+    respond(buff);
+}
+
 void ZabbixResponseHandler::respond(const int resp) {
     char buff[30];
     snprintf(buff, 30, "%d", resp);
     respond(buff);
+}
+
+void ZabbixResponseHandler::respond(const double resp) {
+	respond(resp, 3);
+}
+
+void ZabbixResponseHandler::respond(const double resp, const unsigned char prec) {
+	char buff[17];
+	dtostrf(resp, 4, prec, buff);
+	respond(buff);  
 }
 
 void ZabbixResponseHandler::respond(const char* resp) {
@@ -183,7 +225,13 @@ void ZabbixAgent::processCommand() {
     }
     handler = handler->next;
   }
-  error("Unknown command.");
+  // "Unknown command '" + len(currentKey) + "'." + null
+  uint16_t len = 17 + strlen(currentKey) + 2 + 1;
+  char resp[len];
+  strcpy(resp, "Unknown command '");
+  strcpy(&resp[17], currentKey);
+  strcpy(&resp[17 + strlen(currentKey)], "'.");
+  error(resp);
 }
 
 void ZabbixAgent::on(char* key, ZabbixAgent::CallbackType fn) {

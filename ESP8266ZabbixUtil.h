@@ -19,5 +19,6 @@
 #include <ZabbixAgent.h>
 
 void registerESP8266ZabbixUtil(ZabbixAgent &agent);
+void registerESP8266ZabbixUtil(ZabbixAgent &agent, char* hostname);
 
 #endif

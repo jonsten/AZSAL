@@ -18,6 +18,16 @@
 #include <ZabbixAgent.h>
 #include <ESP8266WiFi.h>
 
+static char* hostname = 0;
+
+void respondAgentPing(ZabbixResponseHandler handler, const char* address, const int nparam, const char** params) {
+  handler.respond(1);
+}
+
+void respondAgentVersion(ZabbixResponseHandler handler, const char* address, const int nparam, const char** params) {
+  handler.respond("AZSAL_1.0");
+}
+
 void respondWIFIRSSI(ZabbixResponseHandler handler, const char* address, const int nparam, const char** params) {
   handler.respond(WiFi.RSSI());
 }
@@ -32,11 +42,29 @@ void respondChipID(ZabbixResponseHandler handler, const char* address, const int
   handler.respond(resp);
 }
 
+void respondAgentHostname(ZabbixResponseHandler handler, const char* address, const int nparam, const char** params) {
+	if (hostname) {
+		handler.respond(hostname);
+	} else {
+		respondChipID(handler, address, nparam, params);
+	}
+}
+
 void respondChipFreeHeap(ZabbixResponseHandler handler, const char* address, const int nparam, const char** params) {
   handler.respond(ESP.getFreeHeap());
 }
 
 void registerESP8266ZabbixUtil(ZabbixAgent &agent) {
+	registerESP8266ZabbixUtil(agent, 0);
+}
+void registerESP8266ZabbixUtil(ZabbixAgent &agent, char* _hostname) {
+	if (_hostname) {
+		hostname = (char*) malloc(strlen(_hostname) + 1);
+		strcpy(hostname, _hostname);
+	}
+  agent.on("agent.ping", respondAgentPing);
+  agent.on("agent.hostname", respondAgentHostname);
+  agent.on("agent.version", respondAgentVersion);
   agent.on("wifi.rssi", respondWIFIRSSI);
   agent.on("wifi.ssid", respondWIFISSID);
   agent.on("chip.id", respondChipID);
