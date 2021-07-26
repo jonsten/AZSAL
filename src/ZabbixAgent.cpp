@@ -176,7 +176,7 @@ void ZabbixResponseHandler::respond(const double resp) {
 void ZabbixResponseHandler::respond(const double resp, const unsigned char prec) {
 	char buff[17];
 	dtostrf(resp, 4, prec, buff);
-	respond(buff);  
+	respond(buff);
 }
 
 void ZabbixResponseHandler::respond(const char* resp) {
