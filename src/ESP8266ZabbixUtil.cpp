@@ -36,6 +36,10 @@ void respondWIFISSID(ZabbixResponseHandler handler, const char* address, const i
   handler.respond(WiFi.SSID().c_str());
 }
 
+void respondWIFIChannel(ZabbixResponseHandler handler, const char* address, const int nparam, const char** params) {
+  handler.respond(WiFi.channel());
+}
+
 void respondChipID(ZabbixResponseHandler handler, const char* address, const int nparam, const char** params) {
   char resp[9];
   snprintf(resp, 9, "%08X", ESP.getChipId());
@@ -67,6 +71,7 @@ void registerESP8266ZabbixUtil(ZabbixAgent &agent, char* _hostname) {
   agent.on("agent.version", respondAgentVersion);
   agent.on("wifi.rssi", respondWIFIRSSI);
   agent.on("wifi.ssid", respondWIFISSID);
+  agent.on("wifi.channel", respondWIFIChannel);
   agent.on("chip.id", respondChipID);
   agent.on("chip.freeHeap", respondChipFreeHeap);
 }
